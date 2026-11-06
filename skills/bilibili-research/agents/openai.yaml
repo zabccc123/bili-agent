@@ -1,0 +1,6 @@
+interface:
+  display_name: "B站资料助手"
+  short_description: "搜索和阅读 B 站视频、检查时间点证据，并把最终推荐保存到本人账号"
+  default_prompt: "使用 $bilibili-research 查找 B 站资料，阅读关键内容并把最终推荐加入稍后再看。"
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+artifacts/
+*.tgz
+*.zip
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/config.json
+browser-profile/
+browser-output/

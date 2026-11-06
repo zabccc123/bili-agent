@@ -1,0 +1,50 @@
+{
+  "name": "bili-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Bilibili reading and saving tools for Codex and other MCP clients",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "bili-agent": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js serve",
+    "dev": "tsx src/cli.ts serve",
+    "test": "tsx --test test/*.test.ts",
+    "check": "npm run build && npm test",
+    "doctor": "node dist/cli.js doctor",
+    "setup": "node dist/cli.js setup",
+    "smoke": "node scripts/smoke.mjs",
+    "package:local": "npm run build && node scripts/package.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@playwright/mcp": "0.0.84",
+    "proper-lockfile": "4.1.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/proper-lockfile": "4.1.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zabccc123/bili-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zabccc123/bili-agent/issues"
+  },
+  "homepage": "https://github.com/zabccc123/bili-agent#readme",
+  "author": {
+    "name": "Zheng Yichuan",
+    "url": "https://github.com/zabccc123"
+  }
+}

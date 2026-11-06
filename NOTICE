@@ -1,0 +1,7 @@
+Bili Agent
+Copyright 2026 Zheng Yichuan
+
+This product includes a modified WBI signing helper from BrowserMCP
+(https://github.com/jackwener/BrowserMCP), distributed under Apache License 2.0.
+The upstream license is provided in third-party/BrowserMCP-LICENSE.txt.
+See THIRD_PARTY_NOTICES.md for dependency licenses and source references.

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bili-agent",
+  "version": "0.1.0",
+  "description": "Read Bilibili videos and save recommended materials to your account through your local browser.",
+  "license": "Apache-2.0",
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Bili Agent · B站资料助手",
+        "shortDescription": "读视频、看画面，把推荐资料保存到B站",
+        "longDescription": "通过本地浏览器读取 B 站字幕和采样画面，将最终推荐加入稍后再看或指定收藏夹，并回读确认。支持专用扫码会话与官方 Playwright 扩展连接。",
+        "developerName": "Personal workspace",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "defaultPrompt": ["帮我查找并阅读 B 站资料，把最终推荐加入稍后再看。"]
+      }
+    }
+  }
+}

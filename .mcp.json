@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "bili-agent": {
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/dist/cli.js", "serve"],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

@@ -7,33 +7,64 @@ import { createRequire } from 'node:module';
 import { dataDir, readConfig, writeConfig, configPath } from './config.js';
 import { PlaywrightBridge } from './browser.js';
 import { BrowserBilibili } from './bilibili/platform.js';
-import { ReceiptStore } from './store.js';
 import { BiliService } from './service.js';
 import { serve } from './server.js';
 import { BiliError, publicError } from './errors.js';
+import { ActivityLog } from './activity.js';
+import { startDashboard, existingDashboard } from './dashboard.js';
+import { VERSION } from './version.js';
 
-export function runtime(root=dataDir(),headless=false) {
+export async function runtime(root=dataDir(),headless=false) {
+  const { ReceiptStore } = await import('./store.js');
   const config=readConfig(root);
+  const activity=new ActivityLog();
   const browser=new PlaywrightBridge(config,root,headless);
-  const platform=new BrowserBilibili(browser);
+  const platform=new BrowserBilibili(browser,{onStage:stage=>activity.stage(stage)});
   const service=new BiliService(platform,new ReceiptStore(root),()=>readConfig(root),root);
-  return {browser,platform,service};
+  return {browser,platform,service,activity};
 }
 const print=(data:unknown)=>process.stdout.write(JSON.stringify(data,null,2)+'\n');
 async function main() {
-  const args=parseArgs({allowPositionals:true,options:{mode:{type:'string'},browser:{type:'string'},'profile-name':{type:'string'},'wait-seconds':{type:'string'},online:{type:'boolean'},headless:{type:'boolean'},'rebind-account':{type:'boolean'},'auto-save':{type:'string'},'folder-id':{type:'string'},video:{type:'string'},keyword:{type:'string'},part:{type:'string'}}});
+  let args;
+  try {args=parseArgs({allowPositionals:true,options:{help:{type:'boolean',short:'h'},json:{type:'boolean'},mode:{type:'string'},browser:{type:'string'},'profile-name':{type:'string'},'wait-seconds':{type:'string'},online:{type:'boolean'},headless:{type:'boolean'},'rebind-account':{type:'boolean'},'auto-save':{type:'string'},'folder-id':{type:'string'},video:{type:'string'},keyword:{type:'string'},part:{type:'string'}}});}
+  catch {throw new BiliError('INVALID_ARGUMENT','命令参数不正确。请运行 node dist/cli.js --help 查看示例。');}
   const command=args.positionals[0]??'serve';
   const root=dataDir();
-  if(command==='help'||command==='--help') {
-    process.stdout.write('bili-agent serve | doctor [--online] | setup [--mode managed|extension] [--browser chrome|msedge] | smoke | inspect --video URL | search --keyword TEXT\n个人状态保存在 '+root+'\n');return;
+  if(command==='help'||args.values.help) {
+    process.stdout.write(`Bili Agent v${VERSION} · B站资料助手
+
+  dashboard                 打开本地资料工作台（输出可点击地址；保持终端运行）
+  serve                     启动 MCP 服务，同时提供本地控制台
+  doctor [--online] [--json] 检查环境；默认仅检查本地，不会核验登录
+  setup                     打开受控浏览器，扫码登录并绑定账号
+  search --keyword TEXT     搜索视频；--headless 可隐藏受控浏览器
+  inspect --video URL       读取带时间戳字幕；--part 2 可指定分 P
+  smoke                     用临时环境验证浏览器桥接
+
+示例：
+  node dist/cli.js dashboard
+  node dist/cli.js doctor --online
+  node dist/cli.js setup --mode managed --browser msedge
+  node dist/cli.js inspect --video https://www.bilibili.com/video/BV1RNTtzMENj/
+
+复用现有浏览器：setup --mode extension --browser chrome（需要官方 Playwright 扩展）。
+续读、批量预览和保存回执可在控制台查看；Codex 使用原生 MCP 工具可复用连接和缓存。
+个人状态保存在 ${root}，不会随插件打包。
+`);return;
   }
   if(command==='doctor') {
     const require=createRequire(import.meta.url);
     const config=readConfig(root);
-    const diagnostics={node:process.version,plugin_version:'0.1.0',playwright_mcp:require('@playwright/mcp/package.json').version,mcp_sdk:2,data_directory:root,config_exists:fs.existsSync(configPath(root)),...config,session_secrets_returned:false};
-    if(!args.values.online){print(diagnostics);return;}
-    const {service}=runtime(root,args.values.headless);
-    try{print({...diagnostics,status:await service.status(true)});}finally{await service.close();}return;
+    const diagnostics={node:process.version,plugin_version:VERSION,playwright_mcp:require('@playwright/mcp/package.json').version,mcp_sdk:2,data_directory:root,config_exists:fs.existsSync(configPath(root)),account_bound:Boolean(config.expected_uid),browser_mode:config.browser_mode,browser:config.browser,online_checked:false,session_secrets_returned:false};
+    const report=(result:typeof diagnostics & {connection?:string;error?:ReturnType<typeof publicError>})=>{
+      if(args.values.json){print(result);return;}
+      process.stdout.write(`Bili Agent v${VERSION} · ${result.online_checked?'已执行在线核验':'仅检查本地，尚未确认登录'}\n浏览器：${config.browser} · ${config.browser_mode==='managed'?'独立持久会话':'扩展连接'}\n账号：${result.connection??(result.account_bound?'本地已绑定，尚未在线核验':'尚未绑定，请运行 setup')}\nNode：${process.version}\n${result.error?'诊断码：'+result.error.code+' · '+result.error.message+'\n':''}可视化入口：node dist/cli.js dashboard\n`);
+    };
+    if(!args.values.online){report(diagnostics);return;}
+    const {service}=await runtime(root,args.values.headless);
+    try{const status=await service.status(true);if('account' in status)report({...diagnostics,online_checked:true,connection:status.account_matches?'已核验，当前账号与绑定一致':!status.account.logged_in?'登录失效，请重新运行 setup':!status.account_bound?'已登录但尚未绑定，请运行 setup':'当前账号与绑定不符，请切换账号后重试'});}
+    catch(error){report({...diagnostics,error:publicError(error)});process.exitCode=1;}
+    finally{await service.close();}return;
   }
   if(command==='setup') {
     const config=readConfig(root);
@@ -49,9 +80,9 @@ async function main() {
       config.default_targets=[{kind:'favorite',folder_id:args.values['folder-id']}];
     }
     writeConfig(config,root);
-    const {browser,platform,service}=runtime(root,false);
     const seconds=Number(args.values['wait-seconds']??300);
     if(!Number.isFinite(seconds)||seconds<0||seconds>3600)throw new BiliError('INVALID_WAIT','wait-seconds 必须在 0 到 3600 之间。');
+    const {browser,platform,service}=await runtime(root,false);
     try {
       process.stderr.write(config.browser_mode==='managed'?'正在打开 B 站专用浏览器。请点击网页右上角登录，使用 B 站 App 扫码。\n':'正在连接现有浏览器。请安装官方 Playwright Extension，并在连接页面选择已登录的 B 站标签页。\n');
       await browser.run(`async(page)=>{await page.goto('https://www.bilibili.com/',{waitUntil:'domcontentloaded',timeout:30000});return {__bili_agent:{opened:true}};}`);
@@ -74,14 +105,17 @@ async function main() {
     }finally{await service.close();}return;
   }
   if(command==='smoke') {
-    const {browser,service}=runtime(root,true);
+    const {browser,service}=await runtime(root,true);
     try{
       const result=await browser.run(`async(page)=>{await page.goto('data:text/html,<title>Bili Agent bridge check</title><h1 id="probe">bridge-ready</h1>');return {__bili_agent:{title:await page.title(),text:await page.locator('#probe').textContent()}};}`);
       print({ok:true,check:'official-playwright-mcp-roundtrip',result});
     }finally{await service.close();}return;
   }
   if(command==='inspect'||command==='search') {
-    const {platform,service}=runtime(root,Boolean(args.values.headless));
+    if(command==='inspect'&&!args.values.video)throw new BiliError('VIDEO_REQUIRED','请提供 --video。例如：node dist/cli.js inspect --video https://www.bilibili.com/video/BV1RNTtzMENj/');
+    if(command==='search'&&!args.values.keyword)throw new BiliError('KEYWORD_REQUIRED','请提供 --keyword。例如：node dist/cli.js search --keyword "MCP 教程"');
+    if(args.values.part&&(!/^[1-9]\d*$/.test(args.values.part)||Number(args.values.part)>10000))throw new BiliError('INVALID_PART','--part 必须为 1 到 10000 之间的整数。');
+    const {platform,service}=await runtime(root,Boolean(args.values.headless));
     try{
       if(command==='inspect'){
         if(!args.values.video)throw new BiliError('VIDEO_REQUIRED','请提供 --video。');
@@ -92,7 +126,19 @@ async function main() {
       }
     }finally{await service.close();}return;
   }
-  if(command!=='serve')throw new BiliError('UNKNOWN_COMMAND','未知命令。请运行 help。');
-  await serve(runtime(root).service);
+  if(command==='dashboard') {
+    const running=await existingDashboard(root);
+    if(running){print({ok:true,url:running,reused:true,message:'控制台已连接到现有服务。'});return;}
+    const context=await runtime(root,Boolean(args.values.headless));
+    const dashboard=await startDashboard({...context,root});
+    print({ok:true,url:dashboard.url,reused:false,message:'在浏览器中打开此地址。保持本终端运行；Ctrl+C 结束。'});
+    let stopping=false;
+    const stop=async()=>{if(stopping)return;stopping=true;await dashboard.close();await context.service.close();};
+    process.once('SIGINT',()=>void stop());process.once('SIGTERM',()=>void stop());return;
+  }
+  if(command!=='serve')throw new BiliError('UNKNOWN_COMMAND','未知命令。请运行 node dist/cli.js --help。');
+  const context=await runtime(root);
+  const dashboard=await startDashboard({...context,root});
+  await serve(context.service,{activity:context.activity,dashboardUrl:dashboard.url,onClose:dashboard.close});
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{process.stderr.write(JSON.stringify({ok:false,error:publicError(error)})+'\n');process.exitCode=1;});

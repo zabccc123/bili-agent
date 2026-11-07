@@ -28,7 +28,7 @@ export interface Transcript {
   data_source: 'subtitle' | 'ai_subtitle';
   language: string;
   cues: Cue[];
-  coverage: { part: number; requested_start_seconds: number; requested_end_seconds: number; start_seconds: number; end_seconds: number; total_cues: number; returned_cues: number; truncated: boolean; next_start_seconds?: number; visuals_analyzed: false };
+  coverage: { part: number; requested_start_seconds: number; requested_end_seconds: number; start_seconds: number; end_seconds: number; total_cues: number; returned_cues: number; truncated: boolean; next_start_seconds?: number; next_cursor?: string; visuals_analyzed: false };
 }
 export type ReceiptStatus = 'prepared' | 'saved' | 'already_present' | 'pending_verification' | 'failed';
 export interface Receipt {
@@ -46,7 +46,7 @@ export interface BilibiliPlatform {
   account(): Promise<Account>;
   search(keyword: string, page: number, limit: number): Promise<unknown>;
   video(input: string, part?: number): Promise<Video>;
-  transcript(input: string, options: { part?: number; start?: number; end?: number; limit: number }): Promise<Transcript>;
+  transcript(input: string, options: { part?: number; start?: number; end?: number; limit: number; cursor?: string }): Promise<Transcript>;
   folders(): Promise<Folder[]>;
   contains(video: Video, target: SaveTarget, uid: string): Promise<boolean>;
   add(video: Video, target: SaveTarget, uid: string): Promise<void>;

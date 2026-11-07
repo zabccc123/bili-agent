@@ -1,6 +1,6 @@
 {
   "name": "bili-agent",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "description": "Read Bilibili videos and save recommended materials using a local browser.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
@@ -10,7 +10,12 @@
     "longDescription": "通过本地浏览器读取 B 站字幕、采样画面、保存并回读核验。",
     "developerName": "Personal workspace",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["帮我查找并阅读 B 站资料，把最终推荐加入稍后再看。"]
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "帮我查找并阅读 B 站资料，把最终推荐加入稍后再看。"
+    ]
   }
 }

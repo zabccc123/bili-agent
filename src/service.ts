@@ -45,8 +45,13 @@ export class BiliService {
     const errors: {video:string;error:ReturnType<typeof publicError>}[] = [];
     const planned: unknown[] = [];
     const seen = new Set<string>();
+    const seenInputs = new Set<string>();
     try {
       for (const inputVideo of input.videos) {
+        // Exact repeats need no extra resolution/network work. The bvid set
+        // below also deduplicates different URLs for the same video.
+        if (seenInputs.has(inputVideo.trim())) continue;
+        seenInputs.add(inputVideo.trim());
         let video: Video;
         try { video = await this.platform.video(inputVideo); }
         catch (error) { errors.push({video:inputVideo,error:publicError(error)}); continue; }

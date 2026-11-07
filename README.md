@@ -15,6 +15,8 @@ A local-first Bilibili MCP plugin for searching videos, reading timed subtitles,
 - 播放器画面采样，返回实际时间点的图片。
 - 加入稍后再看、加入本人指定收藏夹，支持预览、查重、回读核验和持久化回执。
 - Skill 在推荐资料时按本地偏好自动保存最终推荐集。
+- 本地可视化资料工作台：搜索、字幕续读、保存队列、任务阶段与耗时、跨聊天保存回执。
+- 有界内存缓存复用签名信息、视频详情与完整字幕；字幕按当前账号和分 P 隔离，续读使用精确游标。
 
 不含本地 ASR；没有字幕时明确返回状态，可以采样画面但不能当作完整音视频理解。插件启用后的 Skill 和服务 instructions 提供相关任务的流程指导，不是对所有聊天回答的强制监听器。
 
@@ -45,9 +47,14 @@ node dist/cli.js setup --mode extension --browser chrome
 ```powershell
 node dist/cli.js doctor
 node dist/cli.js doctor --online
+node dist/cli.js dashboard
 node dist/cli.js search --keyword 'MCP 开发 教程' --headless
 node dist/cli.js inspect --video 'https://www.bilibili.com/video/BV1RNTtzMENj/' --headless
 ```
+
+`dashboard` 会输出本机可点击地址。保持终端运行；若已有新版 MCP 服务，命令会连接它的控制台，复用同一浏览器与任务队列。Codex 中也可以说“打开 B站资料工作台”，由 `bilibili_open_dashboard` 获取地址。地址带本地连接码，只给本人使用。控制台仅监听 `127.0.0.1`。
+
+`doctor` 默认只检查本地，明确区分“已绑定”与“已在线核验”；需要机器可读结果时加 `--json`。常规 MCP 使用不会为每个工具重启浏览器。命令行 `search` / `inspect` 则是一次性调用，不共享另一个进程的缓存。
 
 **安装为 Codex 插件**
 

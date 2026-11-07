@@ -1,6 +1,6 @@
 {
   "name": "bili-agent",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "description": "Local Bilibili reading and saving tools for Codex and other MCP clients",
   "type": "module",
@@ -17,6 +17,9 @@
     "test": "tsx --test test/*.test.ts",
     "check": "npm run build && npm test",
     "doctor": "node dist/cli.js doctor",
+    "dashboard": "node dist/cli.js dashboard",
+    "preview:ui": "tsx scripts/preview-ui.ts",
+    "benchmark:fixture": "tsx scripts/benchmark-fixture.ts",
     "setup": "node dist/cli.js setup",
     "smoke": "node scripts/smoke.mjs",
     "package:local": "npm run build && node scripts/package.mjs"

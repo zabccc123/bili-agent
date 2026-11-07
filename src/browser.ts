@@ -6,7 +6,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import type { Config } from './types.js';
 import { BiliError } from './errors.js';
 
-export interface BrowserExecutor { run<T>(code: string): Promise<T>; close(): Promise<void> }
+export interface BrowserRunOptions { settle?: 'page' | 'none' }
+export interface BrowserExecutor { run<T>(code: string, options?: BrowserRunOptions): Promise<T>; close(): Promise<void> }
 export class PlaywrightBridge implements BrowserExecutor {
   private client?: Client;
   private transport?: StdioClientTransport;
@@ -21,7 +22,9 @@ export class PlaywrightBridge implements BrowserExecutor {
       fs.mkdirSync(this.root, { recursive: true, mode: 0o700 });
       const require = createRequire(import.meta.url);
       const cli = path.join(path.dirname(require.resolve('@playwright/mcp/package.json')), 'cli.js');
-      const args = [cli, '--browser', this.config.browser, '--snapshot-mode', 'none', '--console-level', 'error', '--no-webmcp', '--output-dir', path.join(this.root, 'browser-output'), '--timeout-navigation', '30000'];
+      // Each API operation awaits its own response. The MCP default adds two
+      // 500ms UI-settling delays to a fetch, without making that response safer.
+      const args = [cli, '--browser', this.config.browser, '--snapshot-mode', 'none', '--console-level', 'error', '--no-webmcp', '--output-dir', path.join(this.root, 'browser-output'), '--timeout-navigation', '30000', '--timeout-settle', '0'];
       if (this.config.browser_mode === 'extension') {
         args.push('--extension');
         if (this.config.profile_name) args.push('--profile-dir-name', this.config.profile_name);
@@ -54,10 +57,17 @@ export class PlaywrightBridge implements BrowserExecutor {
     })();
     try { return await this.connecting; } finally { this.connecting = undefined; }
   }
-  async run<T>(code: string): Promise<T> {
+  async run<T>(code: string, options: BrowserRunOptions = {}): Promise<T> {
     const client = await this.connect();
+    // Page actions retain a conservative settling interval in addition to their
+    // locator/media readiness checks. Pure fetch operations explicitly opt out.
+    const executable = options.settle === 'none' ? code : `async (page) => {
+      const result = await (${code})(page);
+      await page.waitForTimeout(500);
+      return result;
+    }`;
     let response;
-    try { response = await client.callTool({ name: this.runTool, arguments: { code } }, { timeout: 180000 }); }
+    try { response = await client.callTool({ name: this.runTool, arguments: { code: executable } }, { timeout: 180000 }); }
     catch { throw new BiliError('BROWSER_CONNECTION_FAILED', '浏览器连接未完成或已断开。扩展模式请在浏览器中连接 B 站标签页；专用模式请关闭占用相同专用配置的另一个进程后重试。'); }
     const raw = response.content.filter(item => item.type === 'text').map(item => item.text).join('\n');
     if (response.isError) throw new BiliError('BROWSER_OPERATION_FAILED', '浏览器操作未完成。请检查登录、扩展连接或网络，然后重试。');

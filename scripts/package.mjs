@@ -10,7 +10,7 @@ for(const manifest of ['plugin.json','.codex-plugin/plugin.json']){
 const marketplace=path.join(root,'artifacts','marketplace');
 const destination=path.join(marketplace,'plugins','bili-agent');
 fs.mkdirSync(destination,{recursive:true});
-for(const item of ['dist','skills','third-party','plugin.json','mcp.json','.codex-plugin','.mcp.json','package.json','package-lock.json','README.md','VALIDATION.md','THIRD_PARTY_NOTICES.md','LICENSE','NOTICE']){
+for(const item of ['dist','skills','third-party','plugin.json','mcp.json','.codex-plugin','.mcp.json','package.json','package-lock.json','README.md','VALIDATION.md','UX_ITERATIONS.md','CHANGELOG.md','THIRD_PARTY_NOTICES.md','LICENSE','NOTICE']){
   fs.cpSync(path.join(root,item),path.join(destination,item),{recursive:true});
 }
 const npmCli=process.env.npm_execpath;

@@ -48,6 +48,9 @@ async function main() {
   node dist/cli.js inspect --video https://www.bilibili.com/video/BV1RNTtzMENj/
 
 复用现有浏览器：setup --mode extension --browser chrome（需要官方 Playwright 扩展）。
+setup 参数：--mode managed|extension、--browser chrome|msedge、--profile-name 名称、
+  --rebind-account（本人显式更换绑定）、--auto-save on|off、--folder-id ID、--wait-seconds 300。
+更换绑定前请结束占用同一专用浏览器的控制台/MCP 服务，再运行 setup；不要删除浏览器 profile。
 续读、批量预览和保存回执可在控制台查看；Codex 使用原生 MCP 工具可复用连接和缓存。
 个人状态保存在 ${root}，不会随插件打包。
 `);return;

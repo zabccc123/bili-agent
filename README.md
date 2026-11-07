@@ -29,12 +29,16 @@ git clone https://github.com/zabccc123/bili-agent.git
 cd bili-agent
 npm ci
 npm run check
-node dist/cli.js setup --mode managed --browser msedge
+node dist/cli.js dashboard
 ```
+
+打开命令输出的本机地址，点击“登录/连接 B站”，在受控浏览器扫码后再点击“已扫码，连接账号”，即可完成首次绑定。已有 Codex 插件安装时，可以直接说“打开 B站资料工作台”。
+
+原 `setup` 命令仍可使用；复用现有浏览器或显式更换绑定时使用命令行选项。更换绑定前，先结束占用同一专用浏览器的控制台/MCP 服务，避免配置占用；不要删除 profile。
 
 打包本地插件还需要 Python 3.9+，使用标准库生成 ZIP；日常运行无需 Python。
 
-在打开的 B 站网页登录。程序确认实际账号后绑定 UID，默认自动将最终推荐加入稍后再看。Windows 个人状态在 `%LOCALAPPDATA%\BiliAgent`，与项目和插件安装目录分离。升级插件不会覆盖登录态。
+程序确认实际账号后绑定 UID，默认自动将最终推荐加入稍后再看。Windows 个人状态在 `%LOCALAPPDATA%\BiliAgent`，与项目和插件安装目录分离。升级插件不会覆盖登录态。
 
 复用日常浏览器需要安装官方 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)，然后运行：
 
@@ -108,7 +112,13 @@ Skill 名称为 `$bilibili-research`。MCP 服务名为 `bili-agent`。所有工
 npm run check
 npm run smoke
 node scripts/live-acceptance.mjs --frames
+npm run benchmark:fixture
+npm run benchmark:live -- --frames
 ```
+
+`npm run preview:ui` 启动纯本地模拟工作台，包含多分 P、415 条字幕和待核验回执，所有保存只影响临时测试环境，不连接真实 B 站。适合界面开发与复验。`benchmark:live` 只读取和执行保存预览，不向账号新增内容；真实计时与合成请求次数分别记录，不能混用。
+
+界面同时显示当前服务会话的 MCP 与网页操作。任务历史只保留本次进程；保存回执存储在本机并按当前绑定隔离。缓存也是进程内短期缓存，服务重启后重新建立。字幕续读优先使用 `coverage.next_cursor`，不重复下载整份字幕。
 
 前一项不访问真实 B 站账号；它包含完整适配器的合成上游场景和真实 MCP stdio 协议测试。`smoke` 用独立测试状态目录检查官方浏览器桥接。`live-acceptance` 是登录后的只读验收；加 `--save` 才会把指定视频加入稍后再看，加 `--folder-id ID` 还会加入对应收藏夹。测试结果在被 Git 忽略的 `artifacts/acceptance`。该目录可含字幕和截图，不随插件分发。
 
@@ -117,6 +127,8 @@ node scripts/live-acceptance.mjs --frames
 专用 profile 一次由一个浏览器进程持有。使用 Codex 前请结束单独运行的 setup 或在线诊断；占用时等待原操作结束，不要删除 profile。项目会对同一账号的保存动作加跨进程锁。登录失效时重新运行 setup；验证码或权限问题在网页中处理。
 
 源码与复用归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+版本变化见 [CHANGELOG.md](CHANGELOG.md)，每轮评审、修复与实测证据见 [UX_ITERATIONS.md](UX_ITERATIONS.md)。
 
 **参与和后续功能**
 

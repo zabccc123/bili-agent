@@ -33,7 +33,6 @@ test('real MCP stdio handshake, discovery, local status, and input validation',a
     assert.equal(taskResponse.status,200);
     const tasks=await taskResponse.json();
     assert.ok(tasks.data.some((t:any)=>t.operation==='bilibili_auth_status'&&t.status==='completed'),'dashboard must show calls from the same MCP process');
-    assert.ok(tasks.data.some((t:any)=>t.operation==='bilibili_open_dashboard'&&t.status==='completed'));
     const serverStatus=await (await fetch(url.origin+'/api/status',{headers:{Authorization:'Bearer '+url.hash.slice(1)}})).json();
     assert.equal(serverStatus.data.account_bound,false);assert.equal(serverStatus.data.online_checked,false);
     const invalid=await client.callTool({name:'bilibili_save_videos',arguments:{videos:[],cookie:'not-accepted'}}).catch(error=>error);

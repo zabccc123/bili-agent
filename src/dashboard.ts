@@ -9,7 +9,7 @@ import { ActivityLog } from './activity.js';
 import { BiliError, publicError } from './errors.js';
 import { targetSchema, readConfig } from './config.js';
 import { VERSION } from './version.js';
-import { dashboardHtml, dashboardCss, dashboardJs } from './dashboard-page.js';
+import { dashboardHtml, dashboardCss, dashboardCheckboxCss, dashboardJs } from './dashboard-page.js';
 
 export interface DashboardEndpoint { origin: string; token: string; pid: number; version: string }
 export interface DashboardOptions { service: BiliService; activity: ActivityLog; browser: BrowserExecutor; root: string; demo?: boolean }
@@ -44,7 +44,7 @@ export async function startDashboard(options: DashboardOptions) {
       if (request.headers.host !== new URL(origin).host || (request.headers.origin && request.headers.origin !== origin)) { send(403, { ok: false, error: { code: 'LOCAL_ORIGIN_REQUIRED', message: '请从本机控制台地址访问。' } }); return; }
       const route = new URL(request.url ?? '/', origin).pathname;
       if (request.method === 'GET' && ['/', '/app.js', '/style.css'].includes(route)) {
-        const content = route === '/' ? dashboardHtml : route === '/app.js' ? dashboardJs : dashboardCss;
+        const content = route === '/' ? dashboardHtml : route === '/app.js' ? dashboardJs : dashboardCss + dashboardCheckboxCss;
         response.writeHead(200, { 'Content-Type': route === '/' ? 'text/html; charset=utf-8' : route === '/app.js' ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8' }); response.end(content); return;
       }
       const supplied = Buffer.from(request.headers.authorization ?? '');

@@ -106,6 +106,12 @@ export class BiliService {
     const present = await this.platform.contains(video,receipt.target,uid);
     return this.store.put({...receipt,status:present?'saved':'pending_verification',updated_at:new Date().toISOString()});
   }
-  receipts(limit: number) { return this.store.recent(limit); }
+  receipts(limit: number) {
+    const uid = this.getConfig().expected_uid;
+    if (!uid) return [];
+    // Filter before applying the visible limit: a newer account's history must
+    // neither appear here nor hide this binding's older matching receipts.
+    return this.store.recent(limit, uid);
+  }
   async close() { if(this.closed)return;this.closed=true;await this.queue; await this.platform.close(); this.store.close(); }
 }

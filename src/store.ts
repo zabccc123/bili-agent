@@ -18,8 +18,11 @@ export class ReceiptStore {
     const row = this.db.prepare('SELECT body FROM receipts WHERE action_id=?').get(id);
     return row ? JSON.parse(String(row.body)) : undefined;
   }
-  recent(limit = 20): Receipt[] {
-    return this.db.prepare('SELECT body FROM receipts ORDER BY updated_at DESC, rowid DESC LIMIT ?').all(limit).map(row => JSON.parse(String(row.body)));
+  recent(limit = 20, uid?: string): Receipt[] {
+    const rows = uid === undefined
+      ? this.db.prepare('SELECT body FROM receipts ORDER BY updated_at DESC, rowid DESC LIMIT ?').all(limit)
+      : this.db.prepare("SELECT body FROM receipts WHERE json_extract(body,'$.account_uid')=? ORDER BY updated_at DESC, rowid DESC LIMIT ?").all(uid, limit);
+    return rows.map(row => JSON.parse(String(row.body)));
   }
   latest(uid: string, bvid: string, target: Receipt['target']): Receipt | undefined {
     const row = this.db.prepare("SELECT body FROM receipts WHERE json_extract(body,'$.account_uid')=? AND json_extract(body,'$.bvid')=? AND json_extract(body,'$.target.kind')=? AND coalesce(json_extract(body,'$.target.folder_id'),'')=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(uid,bvid,target.kind,target.kind === 'favorite' ? target.folder_id : '');

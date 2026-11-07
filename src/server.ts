@@ -20,10 +20,10 @@ export function createServer(service: BiliService, options: ServerOptions = {}):
   };
   const videoInput = z.string().min(1).max(2048);
   const part = z.number().int().min(1).max(10000).optional();
-  server.registerTool('bilibili_open_dashboard',{description:'获取本机 Bili Agent 可视化控制台地址，查看任务阶段、耗时、字幕覆盖范围与保存回执。地址带本地连接码，请仅向当前用户提供；不对外分享。可在浏览器中打开。',inputSchema:z.object({}).strict(),annotations:read},async()=>call('bilibili_open_dashboard',async()=>{
-    if (!options.dashboardUrl) throw new BiliError('DASHBOARD_UNAVAILABLE','请运行 node dist/cli.js dashboard 启动本地控制台。');
-    return {url:options.dashboardUrl,local_only:true,task_history:'current_process',save_receipts:'persistent'};
-  }));
+  server.registerTool('bilibili_open_dashboard',{description:'立即获取本机资料工作台地址，长任务执行期间也可打开查看进度。地址带本地连接码，请仅向当前用户提供；不对外分享。',inputSchema:z.object({}).strict(),annotations:read},async()=>{
+    if (!options.dashboardUrl) return {...result({ok:false,error:{code:'DASHBOARD_UNAVAILABLE',message:'请运行 node dist/cli.js dashboard 启动本地控制台。'}}),isError:true};
+    return result({ok:true,data:{url:options.dashboardUrl,local_only:true,task_history:'current_process',save_receipts:'persistent'}});
+  });
   server.registerTool('bilibili_auth_status',{description:'检查本地偏好；online=true 时连接浏览器验证实际账号。不会返回登录凭据。',inputSchema:z.object({online:z.boolean().default(false)}).strict(),annotations:read},async args=>call('bilibili_auth_status',()=>service.status(args.online)));
   server.registerTool('bilibili_search',{description:'搜索 B 站视频，返回候选标题、UP 主、时长和链接。搜索候选不会自动保存。',inputSchema:z.object({keyword:z.string().min(1).max(200),page:z.number().int().min(1).max(50).default(1),limit:z.number().int().min(1).max(20).default(5)}).strict(),annotations:read},async args=>call('bilibili_search',()=>service.platform.search(args.keyword,args.page,args.limit)));
   server.registerTool('bilibili_get_video',{description:'读取视频元数据与分 P。URL 中的 p 会被保留；part 可显式覆盖。',inputSchema:z.object({video:videoInput,part}).strict(),annotations:read},async args=>call('bilibili_get_video',()=>service.platform.video(args.video,args.part)));

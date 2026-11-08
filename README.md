@@ -126,6 +126,8 @@ npm run benchmark:live -- --frames
 
 专用 profile 一次由一个浏览器进程持有。使用 Codex 前请结束单独运行的 setup 或在线诊断；占用时等待原操作结束，不要删除 profile。项目会对同一账号的保存动作加跨进程锁。登录失效时重新运行 setup；验证码或权限问题在网页中处理。
 
+从独立工作台切换到新的 Codex MCP 会话前，点击“释放浏览器”。工作台、绑定和回执会保留，专用浏览器连接被关闭；新会话再说“打开 B站资料工作台”，让它使用同一会话的界面与队列。并发共享一个专用 profile 的多会话模式尚未实现。
+
 源码与复用归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 版本变化见 [CHANGELOG.md](CHANGELOG.md)，每轮评审、修复与实测证据见 [UX_ITERATIONS.md](UX_ITERATIONS.md)。

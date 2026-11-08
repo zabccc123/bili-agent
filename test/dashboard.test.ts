@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
+import {randomUUID} from 'node:crypto';
 import {startDashboard,existingDashboard} from '../src/dashboard.js';
 import {ActivityLog} from '../src/activity.js';
 import {BiliService} from '../src/service.js';
@@ -12,16 +13,27 @@ import {BiliFixture,FixtureBrowser,BVID} from './fixture.js';
 import {ReceiptStore} from '../src/store.js';
 import {defaultConfig} from '../src/config.js';
 
-async function setup(fixture=new BiliFixture()){
+async function setup(fixture=new BiliFixture(),browser=new FixtureBrowser(fixture)){
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'bili-agent-dashboard-'));
-  const activity=new ActivityLog(),browser=new FixtureBrowser(fixture);
+  const activity=new ActivityLog();
   const config={...defaultConfig(),expected_uid:'42'};
   const platform=new BrowserBilibili(browser,{onStage:stage=>activity.stage(stage)});
   const service=new BiliService(platform,new ReceiptStore(root),()=>config,root,[0,0]);
   const dashboard=await startDashboard({service,browser,activity,root});
   const get=(route:string,headers:Record<string,string>={})=>fetch(dashboard.origin+route,{headers:{Authorization:'Bearer '+dashboard.token,...headers}});
   const action=(action:string,args:unknown={})=>fetch(dashboard.origin+'/api/action',{method:'POST',headers:{Authorization:'Bearer '+dashboard.token,'Content-Type':'application/json'},body:JSON.stringify({action,args})});
-  return{root,fixture,config,service,dashboard,activity,get,action,async close(){await dashboard.close();await service.close();fs.rmSync(root,{recursive:true,force:true});}};
+  return{root,fixture,browser,config,service,dashboard,activity,get,action,async close(){await dashboard.close();await service.close();fs.rmSync(root,{recursive:true,force:true});}};
+}
+
+class ReconnectingBrowser extends FixtureBrowser {
+  closeCount=0;
+  sessions=0;
+  active=false;
+  override async run<T>(code:string):Promise<T>{
+    if(!this.active){this.active=true;this.sessions++;}
+    return super.run<T>(code);
+  }
+  override async close(){this.closeCount++;this.active=false;}
 }
 
 test('loopback API requires bearer auth and exact host/origin, never a query token or CORS exception',async()=>{
@@ -111,6 +123,62 @@ test('pending receipts can be reconciled through HTTP without another write',asy
     const verified=await (await ctx.action('verify',{action_id:id})).json();
     assert.equal(verified.data.status,'saved');assert.equal(ctx.fixture.writes,1);
   }finally{await ctx.close();}
+});
+
+test('disconnect releases only the browser while local history remains available and the next read reconnects',async()=>{
+  const fixture=new BiliFixture(),browser=new ReconnectingBrowser(fixture),ctx=await setup(fixture,browser);
+  try{
+    const receipt=ctx.service.store.put({action_id:randomUUID(),account_uid:'42',bvid:BVID,title:'Synthetic retained receipt',target:{kind:'watch_later'},status:'pending_verification',created_at:'2025-01-01T00:00:00.000Z',updated_at:'2025-01-01T00:00:00.000Z'});
+    assert.equal((await ctx.action('read',{video:BVID,limit:2})).status,200);
+    assert.equal(browser.sessions,1);assert.equal(browser.active,true);
+    const released=await ctx.action('disconnect');
+    assert.equal(released.status,200);assert.equal((await released.json()).data.released,true);
+    assert.equal(browser.closeCount,1);assert.equal(browser.active,false);
+    const offline=await ctx.get('/api/status');assert.equal(offline.status,200);assert.equal((await offline.json()).data.account_bound,true);
+    const tasks=await (await ctx.get('/api/tasks')).json();
+    assert.ok(tasks.data.some((task:any)=>task.operation==='read'&&task.status==='completed'));
+    assert.ok(tasks.data.some((task:any)=>task.operation==='disconnect'&&task.status==='completed'));
+    const receipts=await ctx.get('/api/receipts');assert.equal(receipts.status,200);
+    assert.equal((await receipts.json()).data[0].action_id,receipt.action_id,'disconnect must not close SQLite or delete saved receipts');
+    const reread=await ctx.action('read',{video:BVID,limit:2});assert.equal(reread.status,200);
+    assert.equal((await reread.json()).data.cues.length,2);
+    assert.equal(browser.sessions,2);assert.equal(browser.active,true,'the persistent service must be able to open another browser session');
+    assert.equal(fixture.writes,0);assert.equal(fixture.requests.filter(request=>request.method==='POST').length,0);
+  }finally{await ctx.close();}
+});
+
+test('disconnect rejects PID, path, force and profile parameters before touching the browser',async()=>{
+  const fixture=new BiliFixture(),browser=new ReconnectingBrowser(fixture),ctx=await setup(fixture,browser);
+  try{
+    for(const args of [{pid:process.pid},{path:'C:\\synthetic-profile'},{force:true},{profile:'synthetic-profile'}]){
+      const response=await ctx.action('disconnect',args);
+      assert.equal(response.status,400);assert.equal((await response.json()).error.code,'INVALID_INPUT');
+    }
+    assert.equal(browser.closeCount,0);assert.equal(fixture.requests.length,0);
+    assert.equal(ctx.activity.recent().length,0);
+  }finally{await ctx.close();}
+});
+
+test('disconnect waits for active browser work instead of closing a session underneath it',async()=>{
+  let release!:()=>void,entered!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;}),started=new Promise<void>(resolve=>{entered=resolve;});
+  class GatedSearch extends BiliFixture {
+    override async fetch(input:string|URL,init:RequestInit={}){
+      if(new URL(String(input)).pathname==='/x/web-interface/wbi/search/type'){entered();await gate;}
+      return super.fetch(input,init);
+    }
+  }
+  const fixture=new GatedSearch(),browser=new ReconnectingBrowser(fixture),ctx=await setup(fixture,browser);
+  let search:Promise<Response>|undefined,disconnect:Promise<Response>|undefined;
+  try{
+    search=ctx.action('search',{keyword:'fixture blocking work'});await started;
+    disconnect=ctx.action('disconnect');
+    for(let i=0;i<30&&!ctx.activity.recent().some(task=>task.operation==='disconnect');i++)await new Promise(resolve=>setTimeout(resolve,5));
+    assert.equal(ctx.activity.recent().find(task=>task.operation==='disconnect')?.status,'queued');
+    assert.equal(browser.closeCount,0,'a queued release may not interrupt the active operation');
+    release();assert.equal((await search).status,200);assert.equal((await disconnect).status,200);
+    assert.equal(browser.closeCount,1);assert.equal(fixture.writes,0);
+  }finally{release();await Promise.allSettled([search,disconnect].filter((item):item is Promise<Response>=>Boolean(item)));await ctx.close();}
 });
 
 test('a long action remains visible with its stage while a second action is queued',async()=>{

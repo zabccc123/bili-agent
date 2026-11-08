@@ -1,6 +1,6 @@
 {
   "name": "bili-agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Local Bilibili reading and saving tools for Codex and other MCP clients",
   "type": "module",

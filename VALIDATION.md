@@ -1,10 +1,10 @@
-# v0.2.0 validation
+# v0.2.1 validation
 
 Validation: 2026-11-07; final installation and release checks: 2026-11-08, Asia/Shanghai. Local platform: Windows, Node.js 24.11.0, Microsoft Edge. Dependencies remain pinned in package-lock.json.
 
 | Check | Result |
 |---|---|
-| TypeScript build and workflow/protocol regressions | 61 tests passed |
+| TypeScript build and workflow/protocol regressions | 64 tests passed |
 | Cache behavior | TTL, capacity, account/part isolation, logout, failed fetch and returned-object mutation covered |
 | Exact subtitle pagination | Overlapping/equal-start cues at limits 1/2/3 return once and terminate; cursor identity/revision validated |
 | Save correctness | UID immediately before POST, folder ownership, add-only deduplication, member readback, uncertain-outcome recovery covered |
@@ -16,8 +16,9 @@ Validation: 2026-11-07; final installation and release checks: 2026-11-08, Asia/
 | Real Bilibili reads | Search, metadata, full subtitles, cached reread and pagination, save preview, player frame capture passed |
 | Real Bilibili writes during this update | None |
 | Production archive | 9.93 MB; workspace modules included; no private account/profile/database files |
-| Codex installed copy | bili-agent@bili-local 0.2.0 installed and enabled |
-| Installed production acceptance, 2026-11-08 | Nine tools, authenticated local workspace, bound account, 461 timed subtitle cues, two player frames at 100/400 s all passed; no account additions |
+| Codex installed copy | bili-agent@bili-local 0.2.1 installed and enabled |
+| Installed production acceptance, 2026-11-08 | v0.2.0: nine tools, authenticated local workspace, bound account, 461 timed subtitle cues, two player frames at 100/400 s all passed; no account additions |
+| Browser release lifecycle | Disconnect waits in the existing queue, closes only the browser connection; HTTP/tasks/receipts persist; a later read reconnects; arbitrary process/path parameters rejected |
 
 The public live sample is [从零编写MCP并发布上线，超简单！手把手教程 — 技术爬爬虾](https://www.bilibili.com/video/BV1RNTtzMENj/). The timing run used a managed headless browser; it does not include model reasoning time. Timing comparisons and separate review scopes are documented in [UX_ITERATIONS.md](UX_ITERATIONS.md).
 

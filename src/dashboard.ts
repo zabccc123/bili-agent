@@ -20,6 +20,7 @@ const targets = z.array(targetSchema).min(1).max(6).optional();
 const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('check'), args: z.object({}).strict() }).strict(),
   z.object({ action: z.literal('connect'), args: z.object({}).strict() }).strict(),
+  z.object({ action: z.literal('disconnect'), args: z.object({}).strict() }).strict(),
   z.object({ action: z.literal('open_browser'), args: z.object({}).strict() }).strict(),
   z.object({ action: z.literal('search'), args: z.object({ keyword: z.string().trim().min(1).max(200), page: z.number().int().min(1).max(50).default(1), limit: z.number().int().min(1).max(20).default(5) }).strict() }).strict(),
   z.object({ action: z.literal('read'), args: z.object({ video, part, cursor: z.string().max(2048).optional(), limit: z.number().int().min(1).max(500).default(200) }).strict() }).strict(),
@@ -88,6 +89,10 @@ export async function startDashboard(options: DashboardOptions) {
             case 'connect':
               activity.stage('opening_browser');
               return connectAccount(root, browser, service.platform);
+            case 'disconnect':
+              activity.stage('releasing_browser');
+              await browser.close();
+              return { released: true };
             case 'check': {
               const status = await service.status(true);
               if (!('account' in status)) throw new BiliError('STATUS_UNAVAILABLE', '尚未完成在线核验。');

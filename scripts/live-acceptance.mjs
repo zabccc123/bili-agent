@@ -14,6 +14,12 @@ function parse(result){const text=result.content.filter(c=>c.type==='text').map(
 async function call(name,args){const result=await client.callTool({name,arguments:args},{timeout:180000});const data=parse(result);if(result.isError)throw new Error(JSON.stringify(data));return data;}
 try{
   await client.connect(transport);
+  const discovered=await client.listTools();
+  report.checks.push({name:'mcp-tools',ok:discovered.tools.length===9,count:discovered.tools.length});
+  const dashboard=await call('bilibili_open_dashboard',{});
+  const local=new URL(dashboard.data.url);
+  const health=await fetch(local.origin+'/api/health',{headers:{Authorization:'Bearer '+local.hash.slice(1)},signal:AbortSignal.timeout(5000)}).then(r=>r.json());
+  report.checks.push({name:'local-workspace',ok:local.hostname==='127.0.0.1'&&health.ok,version:health.version});
   const status=await call('bilibili_auth_status',{online:true});
   report.checks.push({name:'bound-account',ok:status.data.account_matches,mode:status.data.browser_mode});
   const text=await call('bilibili_read_video',{video:values.video,limit:500});
